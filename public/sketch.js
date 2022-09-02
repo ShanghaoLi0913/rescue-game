@@ -27,22 +27,22 @@ function preload() { //加载食物图片
 
 function setup() {
   //画布大小跟随窗口
-  createCanvas(windowWidth, windowHeight); 
+  createCanvas(windowHeight*1.78, windowHeight);
   gravity = createVector(0, 0.2);
-  stroke(255);
+  noStroke();
   strokeWeight(4);
 
   //准备camera
   video = createCapture(VIDEO);
-  video.size(windowWidth, windowHeight);
+  video.size(windowHeight*1.78, windowHeight);
+  video.hide(); //让video显示在canvas上而不是堆叠元素
 
   //调用posenet
   poseNet = ml5.poseNet(video, modelReady);
   poseNet.on("pose", function(results) {
     poses = results;
-    //console.log(poses);
   });
-  video.hide(); //让video显示在canvas上而不是堆叠元素
+  
 
   //裁剪药水素材
   for (let x = 0; x < redPotions.width; x += 16) { //创建食物
@@ -78,13 +78,15 @@ let time1 = null; //time1是上次产生宝箱的时间
 let time2 = null; //time2实时更新
 let randomSeconds;
 let ifGenerate = false; //生成宝箱标志位
+
 function draw(){
-  background(0, 255, 0);
+  background(0, 0, 0);
   image(video, 0, 0, width, width * video.height / video.width);
 
   //hostage = true; //用来测试人质部分
   //console.log('hostage', hostage);
-  if(hostage && !loseORwin){
+  if(hostage && !loseORwin){    
+    $('.my-score').attr('style', 'display:none;');
     if (time1 == null) {
       time1 = second();
     }
@@ -98,9 +100,12 @@ function draw(){
     if (time2 - time1 > randomSeconds){
       HPhostage -= Math.floor(Math.random()*3)+1;
       HPvirus += Math.floor(Math.random()*3)+1;
+      virusExtend += 3*(Math.floor(Math.random()*3)+1);
+      //console.log(virusSize);
       time1 = time2; //重置时间
     }
     drawKeypoints2();
+    gameJudge();
   }else if(loseORwin == 'win'){
     if (random(1) < 0.03) {
       fireworks.push(new Firework());
@@ -145,11 +150,11 @@ function drawKeypoints1() {
     for (let j = 0; j < pose.keypoints.length; j += 1) {  
       //draw every point
       const keypoint = pose.keypoints[j];
-      if (keypoint.score > 0.2) {
-        fill('#fae');
-        noStroke();
-        ellipse(keypoint.position.x, keypoint.position.y, 30, 30); //画点
-      }
+      // if (keypoint.score > 0.2) {
+      //   fill('#fae');
+      //   noStroke();
+      //   ellipse(keypoint.position.x, keypoint.position.y, 30, 30); //画点
+      // }
       //generate box: Yes  display potion: No
       if(ifGenerate && !ifDisplayPotion){ 
         if(Math.random()>=0.5){  //随机选择一边
@@ -177,8 +182,8 @@ function drawKeypoints1() {
 function generateBoxKey(shoulder, ear){
   if (ifDisplayPotion == false){
     if(shoulder.score > 0.2 && ear.score > 0.2) {  //左耳朵画药水
-      image(treasureBox, shoulder.position.x, shoulder.position.y, 64, 64); //左上角位置 大小
-      image(key, ear.position.x, ear.position.y, 64, 64); //左上角位置 大小
+      image(treasureBox, shoulder.position.x-50, shoulder.position.y-50, 100, 100); //左上角位置 大小
+      image(key, ear.position.x-50, ear.position.y-50, 100, 100); //左上角位置 大小
     }
   }
 }
@@ -258,6 +263,9 @@ function displayPotion(shoulder, ear){
 
 ///////////////////////////////////////////////////////////////////////
 let HPvirus = 100;
+let virusSize;
+let virusExtend = 0;
+let virusShrink = 0;
 let HPhostage = 60;
 let hostage = false;
 
@@ -274,6 +282,7 @@ socket.on('saving', function(potion){
     HPhostage += 5;
   }else if(potion == 'green'){
     HPvirus -= 10;
+    virusShrink = -4*(Math.floor(Math.random()*3)+1);
   }
 })
 
@@ -283,26 +292,27 @@ function drawKeypoints2() {
     for (let j = 0; j < pose.keypoints.length; j += 1) {  
       //draw every point
       const keypoint = pose.keypoints[j];
-      if (keypoint.score > 0.2) {
-        fill('#fae');
-        noStroke();
-        ellipse(keypoint.position.x, keypoint.position.y, 30, 30); //画点
-      }
+      // if (keypoint.score > 0.2) {
+      //   fill('#fae');
+      //   noStroke();
+      //   ellipse(keypoint.position.x, keypoint.position.y, 30, 30); //画点
+      // }
       if(loseORwin == false) {
         //根据鼻子的位置和脸的大小画出病毒
         nose = pose.keypoints[0];
-        faceWidth = pose.keypoints[4].position.x - pose.keypoints[3].position.x
-        virusSize = faceWidth*1.5; //病毒宽度由脸的宽度决定
+        faceWidth = abs(pose.keypoints[4].position.x - pose.keypoints[3].position.x);
+        virusSize = faceWidth + virusExtend + virusShrink; //病毒宽度由脸的宽度决定
+        //console.log('virusSize', virusSize);
         image(virus, nose.position.x-virusSize/2, nose.position.y-virusSize/2, virusSize, virusSize);
         
         textSize(50);
         textStyle(BOLD);
         //写出红色人质HP
         fill(255, 0, 0);
-        text('HP: ' +  HPhostage, nose.position.x, nose.position.y + 0.8*faceWidth, 200, 200);
+        text('HP: ' +  HPhostage, nose.position.x - 0.5*faceWidth, nose.position.y - 0.5*faceWidth, 200, 200);
         //写出紫色病毒HP
         fill(128, 0, 128);
-        text('HP: ' +  HPvirus, nose.position.x - 0.5*faceWidth, nose.position.y - 0.5*faceWidth, 200, 200);
+        text('HP: ' +  HPvirus, nose.position.x + 0.25*faceWidth, nose.position.y + 0.25*faceWidth, 200, 200);
       }
     }
   }
@@ -313,7 +323,8 @@ function gameJudge(){
   if(HPvirus == 0 && HPhostage > 0){
     loseORwin = 'win';
   }
-  else if(HPhostage == 0){
+  else if(HPhostage <= 0){
+    stroke(500);
     loseORwin = 'lose';
   }
 }

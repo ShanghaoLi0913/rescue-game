@@ -45,6 +45,9 @@ io.sockets.on('connection',
         socket.on('disconnect', function () {
             users.remove(socket.id);
             console.log(socket.id, 'disconnected');
+            if(users.length == 0) {
+                ifKidnap = false;
+            }
         })
     }
 );
